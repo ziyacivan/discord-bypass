@@ -3,6 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -59,4 +63,37 @@ func waitUntil(timeout time.Duration, cond func() bool) bool {
 		time.Sleep(200 * time.Millisecond)
 	}
 	return cond()
+}
+
+// latestAppExe, Windows'taki Discord kurulum klasöründe (dir) en yeni
+// app-* sürümünün exe'sini döndürür; Update.exe de bunu çalıştırır.
+func latestAppExe(dir, exe string) string {
+	dirs, _ := filepath.Glob(filepath.Join(dir, "app-*"))
+	sort.Slice(dirs, func(i, j int) bool { return versionLess(dirs[i], dirs[j]) })
+	for i := len(dirs) - 1; i >= 0; i-- {
+		if p := filepath.Join(dirs[i], exe); fileExists(p) {
+			return p
+		}
+	}
+	return ""
+}
+
+// versionLess, "app-1.0.9010" gibi klasörleri sürüm numarasına göre karşılaştırır.
+func versionLess(a, b string) bool {
+	pa := strings.Split(strings.TrimPrefix(filepath.Base(a), "app-"), ".")
+	pb := strings.Split(strings.TrimPrefix(filepath.Base(b), "app-"), ".")
+	for i := 0; i < len(pa) && i < len(pb); i++ {
+		var x, y int
+		fmt.Sscan(pa[i], &x)
+		fmt.Sscan(pb[i], &y)
+		if x != y {
+			return x < y
+		}
+	}
+	return len(pa) < len(pb)
+}
+
+func fileExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && !fi.IsDir()
 }

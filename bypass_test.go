@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -261,5 +263,29 @@ func TestProxyServesPAC(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	if !strings.Contains(string(body), `"discord.com"`) || !strings.Contains(string(body), "PROXY "+ln.Addr().String()+"; DIRECT") {
 		t.Fatalf("PAC beklenen içerikte değil:\n%s", body)
+	}
+}
+
+func TestLatestAppExe(t *testing.T) {
+	dir := t.TempDir()
+	mk := func(rel string) {
+		p := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := latestAppExe(dir, "Discord.exe"); got != "" {
+		t.Fatalf("boş klasör: %q", got)
+	}
+	mk("app-1.0.9010/Discord.exe")
+	mk("app-1.0.10000/Discord.exe") // metin sırasıyla küçük, sürüm olarak büyük
+	mk("app-1.0.20000/README")      // exe'si olmayan yarım klasör atlanmalı
+	mk("Update.exe")
+	want := filepath.Join(dir, "app-1.0.10000", "Discord.exe")
+	if got := latestAppExe(dir, "Discord.exe"); got != want {
+		t.Fatalf("latestAppExe = %q, beklenen %q", got, want)
 	}
 }
