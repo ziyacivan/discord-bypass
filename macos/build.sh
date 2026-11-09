@@ -6,9 +6,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSION="${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo dev)}"
-APP_VERSION="${APP_VERSION:-0.2.0}"
+# v1.2.3 etiketinden 1.2.3; etiket yoksa 0.0.0.
+APP_VERSION="${APP_VERSION:-$(echo "$VERSION" | sed -nE 's/^v?([0-9]+\.[0-9]+\.[0-9]+).*/\1/p')}"
+APP_VERSION="${APP_VERSION:-0.0.0}"
 BUILD_NUMBER="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
-APP="bin/Discord Bypass.app"
+APP="${APP_DIR:-bin}/Discord Bypass.app"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 

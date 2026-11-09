@@ -15,6 +15,25 @@ macOS'ta **menü çubuğu**, Windows'ta **sistem tepsisi** uygulaması da var: t
 tıkla aç/kapa, proxy'den geçen her alan adının canlı listesi, bilgisayar
 açılınca otomatik başlatma ve isteğe bağlı tarayıcı desteği.
 
+## İndir
+
+Hazır dosyalar **[Releases](https://github.com/ziyacivan/discord-bypass/releases/latest)**
+sayfasında:
+
+| Sistem                                  | Dosya                                         |
+|-----------------------------------------|-----------------------------------------------|
+| Windows (çoğu bilgisayar)               | `DiscordBypass.exe`: tepsi uygulaması         |
+| Windows on ARM                          | `DiscordBypass-arm64.exe`                     |
+| macOS 13+ (Apple Silicon ve Intel)      | `DiscordBypass-macOS.zip`: menü çubuğu uygulaması |
+| Windows terminal sürümü                 | `discord-bypass.exe`, `discord-bypass-arm64.exe` |
+
+Dosyalar imzasız olduğu için ilk açılışta uyarı çıkar:
+
+- **Windows:** SmartScreen → "Ek bilgi" → "Yine de çalıştır".
+- **macOS:** Uygulamayı Uygulamalar klasörüne taşıyın. İlk açılışta engellenirse
+  Sistem Ayarları → Gizlilik ve Güvenlik → "Yine de Aç". Ya da:
+  `xattr -dr com.apple.quarantine "/Applications/Discord Bypass.app"`
+
 ## Neden gecit değil?
 
 [gecit](https://github.com/boratanrikulu/gecit) bütün sistemi etkiler. Sistem DNS'ini
@@ -57,7 +76,7 @@ Discord bir Electron (Chromium) uygulaması olduğu için `--proxy-server`
 argümanını destekler. Bu argüman yalnızca o Discord sürecine verilir, sistemde
 kalıcı bir ayar oluşturmaz. Sesli sohbet (UDP) proxy'den geçmez, doğrudan gider.
 
-## Kurulum
+## Kaynaktan derleme
 
 [Go](https://go.dev/dl/) 1.26+ gerekir. Daha eski bir Go sürümü varsa gerekli
 sürümü kendisi indirir.
@@ -80,9 +99,28 @@ go build -o discord-bypass .
 Windows sürümü macOS'ta derlenebilir (cgo yok). `make app` uygulama paketini
 silip yeniden oluşturur; `bin/` içinden çalışan uygulamadan önce çıkın.
 
+### Yeni sürüm yayınlama
+
+`v` ile başlayan bir etiket gönderin:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+GitHub Actions testleri çalıştırır, Windows exe'lerini ve macOS uygulamasını
+derler (`make winassets dist`) ve dosyaları Release'e yükler. Sürüm numarası
+etiketten alınır; exe özelliklerinde ve uygulamanın Info.plist'inde görünür.
+PR'larda aynı derleme çalışır ve dosyalar Actions sekmesinden indirilebilir.
+`make dist` yerelde de çalışır (yalnızca macOS'ta); `bin/` içindeki uygulamaya
+dokunmaz.
+
 ## Kullanım
 
 ### macOS menü çubuğu uygulaması (önerilen)
+
+[Releases](https://github.com/ziyacivan/discord-bypass/releases/latest)
+sayfasından `DiscordBypass-macOS.zip`'i indirin ya da kendiniz derleyin:
 
 ```bash
 make app            # bin/Discord Bypass.app (Xcode Command Line Tools gerekir)
@@ -123,7 +161,8 @@ Terminal sürümü 8899 portunu kullanıyorsa uygulama başlayamaz. Önce termin
 
 ### Windows tepsi uygulaması (önerilen)
 
-1. `DiscordBypass.exe`'yi kalıcı bir klasöre koyun, ör.
+1. [Releases](https://github.com/ziyacivan/discord-bypass/releases/latest)
+   sayfasından indirdiğiniz `DiscordBypass.exe`'yi kalıcı bir klasöre koyun, ör.
    `%LOCALAPPDATA%\Programs\DiscordBypass\`. "Windows açılınca başlat" bu yolu
    kaydeder; dosyayı sonradan taşırsanız ilk açılışta kendini günceller.
 2. Çift tıklayın. Konsol penceresi açılmaz; saatin yanındaki tepside kalkan

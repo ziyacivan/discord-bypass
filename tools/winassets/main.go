@@ -157,7 +157,7 @@ func writePNG(path string, img image.Image) {
 func main() {
 	out := flag.String("out", "../..", "depo kökü")
 	preview := flag.String("preview", "", "önizleme PNG'leri için klasör")
-	ver := flag.String("version", "0.3.0", "sürüm")
+	ver := flag.String("version", "0.0.0", "sürüm (1.2.3)")
 	flag.Parse()
 
 	states := map[string]color.RGBA{
