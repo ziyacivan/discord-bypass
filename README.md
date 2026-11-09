@@ -327,3 +327,7 @@ fiziksel arayüzü zorlayın.
 - IP tabanlı engellemeyi aşmaz. Bu bir VPN değildir; IP adresinizi gizlemez.
 
 > Bu proje eğitim ve araştırma amaçlıdır. Kullanım sorumluluğu kullanıcıya aittir.
+
+## Lisans
+
+[MIT](LICENSE)
