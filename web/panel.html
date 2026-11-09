@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discord Bypass</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f5f7; --card: #ffffff; --text: #1d1d1f; --muted: #6e6e73; --line: #e2e2e6;
+    --chip: #ebebef; --seg: #e6e6ea; --seg-on: #ffffff;
+    --green: #22a06b; --orange: #d98a12; --red: #e5484d; --blue: #2f6fde;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e; --card: #252527; --text: #f2f2f4; --muted: #9a9aa1; --line: #36363a;
+      --chip: #38383c; --seg: #303033; --seg-on: #4a4a4e; --blue: #3b82f6;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; display: flex; flex-direction: column; overflow: hidden;
+    font: 13px/1.35 "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  button { font: inherit; color: inherit; }
+  .muted { color: var(--muted); }
+  .bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+  .sep { border-top: 1px solid var(--line); }
+
+  header { padding: 14px; }
+  header .icon { width: 30px; height: 30px; flex: none; }
+  header .title { font-size: 15px; font-weight: 600; }
+  header .status { font-size: 12px; margin-top: 1px; }
+  .grow { flex: 1; min-width: 0; }
+  .state-running .shield { fill: var(--green); }
+  .state-starting .shield { fill: var(--orange); }
+  .state-stopped .shield { fill: #8a8f98; }
+  .state-failed .shield { fill: var(--red); }
+  .state-failed .status { color: var(--red); }
+
+  .switch { position: relative; width: 40px; height: 22px; flex: none; }
+  .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; z-index: 1; }
+  .switch span { position: absolute; inset: 0; border-radius: 11px; background: #b8b8bf; transition: background .15s; }
+  .switch span::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s;
+  }
+  .switch input:checked + span { background: var(--green); }
+  .switch input:checked + span::after { transform: translateX(18px); }
+  .switch input:disabled + span { opacity: .5; }
+
+  .notice { margin: 0 14px 10px; padding: 7px 10px; border-radius: 6px; font-size: 12px;
+            background: rgba(217,138,18,.14); color: var(--orange); }
+  .row .glyph { width: 30px; height: 18px; flex: none; color: var(--muted); }
+  .row .name { font-weight: 600; }
+  .row .desc { font-size: 12px; }
+  .btn { border: 1px solid var(--line); background: var(--card); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+  .btn:hover { filter: brightness(0.97); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .icon-btn { border: 1px solid var(--line); background: var(--card); border-radius: 6px; width: 30px; height: 26px;
+              display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+  .icon-btn svg { width: 15px; height: 15px; }
+  .icon-btn:disabled { opacity: .4; cursor: default; }
+
+  .clients { padding: 9px 14px 0; font-size: 12px; }
+  .seg { display: flex; background: var(--seg); border-radius: 7px; padding: 2px; gap: 2px; }
+  .seg button { flex: 1; border: 0; background: transparent; border-radius: 5px; padding: 4px 6px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+  .seg button.on { background: var(--seg-on); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 600; }
+  .filters { margin: 8px 14px; }
+
+  main { flex: 1; overflow-y: auto; border-top: 1px solid var(--line); min-height: 120px; }
+  .host { display: flex; gap: 8px; padding: 7px 12px 7px 10px; border-bottom: 1px solid var(--line); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; margin: 6px 3px 0; flex: none; background: #a0a0a8; opacity: .6; }
+  .dot.active { background: var(--green); opacity: 1; }
+  .dot.warn { background: var(--orange); opacity: 1; }
+  .dot.err { background: var(--red); opacity: 1; }
+  .host .line1 { display: flex; align-items: center; gap: 6px; }
+  .host .hn { font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .host .meta { font-size: 11px; font-variant-numeric: tabular-nums; }
+  .host .err { font-size: 11px; color: var(--red); }
+  .host .warn { font-size: 11px; color: var(--orange); }
+  .badge { font-size: 9.5px; font-weight: 700; padding: 1px 7px; border-radius: 9px; letter-spacing: .3px; flex: none; }
+  .badge.bp { background: var(--blue); color: #fff; }
+  .badge.dr { background: var(--chip); color: var(--muted); }
+  .empty { padding: 30px 20px; text-align: center; font-size: 12px; }
+  pre.log { margin: 0; padding: 12px; font: 11px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-all; user-select: text; }
+
+  footer { border-top: 1px solid var(--line); }
+  footer .seg { flex: none; width: 190px; }
+  .menu { position: fixed; right: 12px; bottom: 50px; width: 290px; background: var(--card); border: 1px solid var(--line);
+          border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.22); padding: 6px 0; z-index: 10; }
+  .menu label, .menu .item { display: flex; align-items: center; gap: 8px; padding: 7px 12px; cursor: pointer; }
+  .menu .item:hover, .menu label:hover { background: var(--seg); }
+  .menu select { margin-left: auto; font: inherit; }
+  .menu hr { border: 0; border-top: 1px solid var(--line); margin: 5px 0; }
+  .menu .quit { color: var(--red); }
+  .offline { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+             background: var(--bg); padding: 30px; z-index: 20; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="state-stopped">
+
+<header class="bar">
+  <svg class="icon" viewBox="0 0 100 100" aria-hidden="true">
+    <path class="shield" d="M50 6 L88 19 L88 47 C88 73 68 87 50 96 C32 87 12 73 12 47 L12 19 Z"/>
+    <polygon fill="#fff" points="52.6,27.75 55.15,27.75 52.6,45.85 61.6,45.85 47.4,74.25 44.85,74.25 47.4,56.15 38.4,56.15"/>
+  </svg>
+  <div class="grow">
+    <div class="title">Discord Bypass</div>
+    <div class="status muted" id="status">Bağlanılıyor…</div>
+  </div>
+  <label class="switch" title="Bypass'ı aç/kapat"><input type="checkbox" id="power"><span></span></label>
+</header>
+
+<div class="notice" id="notice" hidden></div>
+
+<div class="sep"></div>
+<div class="bar row" id="autostartRow" hidden>
+  <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+    <path d="M12 3v8"/><path d="M6.3 7.3a8 8 0 1 0 11.4 0"/>
+  </svg>
+  <div class="grow">
+    <div class="name" id="autostartName">Windows açılınca başlat</div>
+    <div class="desc muted">Oturum açıldığında tepside sessizce başlar</div>
+  </div>
+  <label class="switch"><input type="checkbox" id="autostart"><span></span></label>
+</div>
+<div class="bar row sep" id="browserRow" hidden>
+  <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>
+  </svg>
+  <div class="grow">
+    <div class="name">Tarayıcılar</div>
+    <div class="desc muted" id="browserDesc"></div>
+  </div>
+  <button class="btn" id="browserBtn">Kur</button>
+</div>
+<div class="sep" id="rowsSep" hidden></div>
+
+<div id="hostsView" style="display:flex;flex-direction:column;flex:1;min-height:0">
+  <div class="clients"><span class="muted">Proxy'yi kullanan:</span> <span id="clients">-</span></div>
+  <div class="seg filters" id="filters">
+    <button data-f="all" class="on">Tümü</button>
+    <button data-f="discord">Discord</button>
+    <button data-f="other">Diğer</button>
+    <button data-f="problems">Sorun</button>
+  </div>
+  <main id="list"></main>
+</div>
+<main id="logView" hidden><pre class="log" id="log"></pre></main>
+
+<footer class="bar">
+  <div class="seg" id="tabs">
+    <button data-t="hosts" class="on">Bağlantılar</button>
+    <button data-t="log">Kayıt</button>
+  </div>
+  <div class="grow"></div>
+  <button class="icon-btn" id="relaunch" title="Discord'u proxy ile yeniden başlat">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>
+  </button>
+  <button class="icon-btn" id="clear" title="Listeyi temizle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>
+  </button>
+  <button class="icon-btn" id="settingsBtn" title="Ayarlar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+  </button>
+</footer>
+
+<div class="menu" id="menu" hidden>
+  <label>Yöntem <select id="mode"></select></label>
+  <label><input type="checkbox" id="autoStartBypass"> Uygulama açılınca bypass'ı başlat</label>
+  <label><input type="checkbox" id="launchDiscord"> Başlatınca Discord'u proxy ile aç</label>
+  <hr>
+  <div class="item quit" id="quit">Uygulamadan çık</div>
+</div>
+
+<div class="offline" id="offline" hidden>
+  <div><div style="font-weight:600;margin-bottom:6px">Uygulama kapalı</div>
+  <div class="muted" id="offlineText">Discord Bypass çalışmıyor. Başlat menüsünden ya da tepsi simgesinden yeniden açabilirsiniz.</div></div>
+</div>
+
+<script>
+"use strict";
+const qs = new URLSearchParams(location.search);
+const token = qs.get("t") || "";
+const demo = qs.has("demo");
+const $ = (id) => document.getElementById(id);
+let st = null, filter = "all", tab = "hosts", fails = 0;
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function bytes(n) {
+  if (n < 1000) return n + " B";
+  if (n < 1e6) return Math.round(n / 1e3) + " KB";
+  if (n < 1e9) return (n / 1e6).toFixed(1) + " MB";
+  return (n / 1e9).toFixed(2) + " GB";
+}
+function ago(ms) {
+  const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if (s < 5) return "şimdi";
+  if (s < 60) return s + " sn önce";
+  if (s < 3600) return Math.floor(s / 60) + " dk önce";
+  return Math.floor(s / 3600) + " sa önce";
+}
+const problem = (h) => h.errors > 0 || h.noReply > 0;
+
+async function api(path, body) {
+  if (demo) return demoState(body);
+  const opt = { headers: { "X-Token": token }, cache: "no-store" };
+  if (body) {
+    opt.method = "POST";
+    opt.headers["Content-Type"] = "application/json";
+    opt.body = JSON.stringify(body);
+  }
+  const r = await fetch(path, opt);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || "HTTP " + r.status), { status: r.status });
+  return j;
+}
+
+async function refresh() {
+  try {
+    st = await api("/api/state");
+    fails = 0;
+    $("offline").hidden = true;
+    render();
+  } catch (e) {
+    if (e.status === 401) {
+      $("offlineText").textContent = "Bu adres geçersiz. Paneli tepsi simgesinden açın.";
+      $("offline").hidden = false;
+    } else if (++fails >= 2) {
+      $("offline").hidden = false;
+    }
+  }
+}
+
+async function act(action, extra) {
+  try {
+    const j = await api("/api/action", Object.assign({ action }, extra || {}));
+    if (j.state === "quitting") {
+      $("offlineText").textContent = "Uygulama kapatıldı. Bu pencereyi kapatabilirsiniz.";
+      $("offline").hidden = false;
+      return;
+    }
+    st = j;
+    render();
+  } catch (e) {
+    showNotice(e.message);
+  }
+}
+
+let noticeTimer = 0;
+function showNotice(text) {
+  $("notice").textContent = text;
+  $("notice").hidden = false;
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => render(), 6000);
+}
+
+function statusText() {
+  switch (st.state) {
+    case "running": return "Açık · " + st.mode + " · " + st.proxy;
+    case "starting": return "Başlatılıyor, çalışan yöntem aranıyor…";
+    case "failed": return st.error || "Hata";
+    default: return "Kapalı. Discord ve tarayıcılar doğrudan bağlanıyor.";
+  }
+}
+
+function render() {
+  if (!st) return;
+  document.body.className = "state-" + st.state;
+  $("status").textContent = statusText();
+  $("power").checked = st.state === "running" || st.state === "starting";
+
+  if (!noticeTimer || $("notice").hidden) {
+    $("notice").hidden = !st.notice;
+    $("notice").textContent = st.notice || "";
+  }
+
+  const win = st.platform === "windows";
+  $("autostartRow").hidden = !st.autostart.supported;
+  $("autostartName").textContent = win ? "Windows açılınca başlat" : "Oturum açılınca başlat";
+  $("autostart").checked = st.autostart.enabled;
+  $("browserRow").hidden = !st.browser.supported;
+  $("rowsSep").hidden = !(st.autostart.supported || st.browser.supported);
+  $("browserDesc").textContent = st.browser.installed
+    ? "Kurulu: tarayıcılar yalnızca Discord için bu proxy'yi kullanır"
+    : "Kurulu değil: yalnızca Discord uygulaması kullanıyor";
+  $("browserBtn").textContent = st.browser.installed ? "Kaldır" : "Kur";
+  $("relaunch").disabled = st.state !== "running";
+
+  const sel = $("mode");
+  if (sel.options.length !== st.modes.length) {
+    sel.innerHTML = st.modes.map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join("");
+  }
+  if (document.activeElement !== sel) sel.value = st.settings.mode;
+  $("autoStartBypass").checked = st.settings.autoStartBypass;
+  $("launchDiscord").checked = st.settings.launchDiscord;
+
+  $("clients").textContent = st.clients.length
+    ? st.clients.map((c) => c.name + " (" + c.connections + ")").join(", ")
+    : (st.state === "running" ? "şu an kimse" : "-");
+
+  const counts = {
+    all: st.hosts.length,
+    discord: st.hosts.filter((h) => h.bypass).length,
+    other: st.hosts.filter((h) => !h.bypass).length,
+    problems: st.hosts.filter(problem).length,
+  };
+  const labels = { all: "Tümü", discord: "Discord", other: "Diğer", problems: "Sorun" };
+  for (const b of $("filters").children) {
+    b.textContent = labels[b.dataset.f] + " " + counts[b.dataset.f];
+    b.classList.toggle("on", b.dataset.f === filter);
+  }
+
+  $("hostsView").hidden = tab !== "hosts";
+  $("hostsView").style.display = tab === "hosts" ? "flex" : "none";
+  $("logView").hidden = tab !== "log";
+  if (tab === "log") {
+    $("log").textContent = st.log.slice().reverse().join("\n") || "Kayıt yok.";
+  } else {
+    renderHosts();
+  }
+}
+
+function renderHosts() {
+  const rows = st.hosts.filter((h) =>
+    filter === "all" ? true : filter === "discord" ? h.bypass : filter === "other" ? !h.bypass : problem(h));
+  if (!rows.length) {
+    const msg = filter === "problems" ? "Sorunlu bağlantı yok."
+      : filter === "other" ? "Discord dışında proxy'den geçen bir alan adı yok."
+      : st.state === "running" ? "Henüz bağlantı yok." : "Bypass kapalı.";
+    $("list").innerHTML = `<div class="empty muted">${msg}</div>`;
+    return;
+  }
+  $("list").innerHTML = rows.map((h) => {
+    const dot = h.errors > 0 ? "err" : h.noReply > 0 ? "warn" : h.active > 0 ? "active" : "";
+    const meta = [h.active > 0 ? h.active + " açık" : null, h.total + " bağlantı",
+      "↑" + bytes(h.up) + " ↓" + bytes(h.down), ago(h.lastSeen)].filter(Boolean).join(" · ");
+    const err = problem(h) && h.lastError
+      ? `<div class="${h.errors > 0 ? "err" : "warn"}">${esc(h.lastError)}</div>` : "";
+    const badge = h.bypass
+      ? `<span class="badge bp" title="DoH + ClientHello parçalama (${esc(h.mode)})">BYPASS</span>`
+      : `<span class="badge dr" title="Olduğu gibi iletiliyor">DİREKT</span>`;
+    return `<div class="host" title="${esc(h.host)}${h.ip ? " → " + esc(h.ip) : ""}">
+      <div class="dot ${dot}"></div>
+      <div class="grow"><div class="line1"><span class="hn">${esc(h.host)}</span>${badge}</div>
+      <div class="meta muted">${esc(meta)}</div>${err}</div></div>`;
+  }).join("");
+}
+
+$("power").addEventListener("change", (e) => act(e.target.checked ? "start" : "stop"));
+$("autostart").addEventListener("change", (e) => act("autostart", { on: e.target.checked }));
+$("browserBtn").addEventListener("click", () => act("browser", { on: !st.browser.installed }));
+$("relaunch").addEventListener("click", () => act("relaunch"));
+$("clear").addEventListener("click", () => act("clear"));
+$("mode").addEventListener("change", (e) => act("mode", { value: e.target.value }));
+$("autoStartBypass").addEventListener("change", (e) => act("autoStartBypass", { on: e.target.checked }));
+$("launchDiscord").addEventListener("change", (e) => act("launchDiscord", { on: e.target.checked }));
+$("quit").addEventListener("click", () => act("quit"));
+$("settingsBtn").addEventListener("click", (e) => { e.stopPropagation(); $("menu").hidden = !$("menu").hidden; });
+document.addEventListener("click", (e) => { if (!$("menu").contains(e.target)) $("menu").hidden = true; });
+$("filters").addEventListener("click", (e) => { if (e.target.dataset.f) { filter = e.target.dataset.f; render(); } });
+$("tabs").addEventListener("click", (e) => {
+  if (!e.target.dataset.t) return;
+  tab = e.target.dataset.t;
+  for (const b of $("tabs").children) b.classList.toggle("on", b.dataset.t === tab);
+  render();
+});
+
+// Yalnızca ekran görüntüsü ve tasarım için örnek veri (?demo).
+function demoState() {
+  const now = Date.now();
+  const h = (host, bypass, o) => Object.assign({ host, bypass, mode: bypass ? "tlsrec+split" : "direkt", ip: "",
+    total: 1, active: 0, errors: 0, noReply: 0, up: 600, down: 4000, lastSeen: now - 2000 }, o);
+  return {
+    version: "demo", platform: qs.get("demo") || "windows", state: "running", mode: "tlsrec+split", proxy: "127.0.0.1:8899",
+    modes: ["auto", "tlsrec+split", "tlsrec", "split", "disorder", "none"],
+    settings: { mode: "auto", launchDiscord: true, autoStartBypass: true },
+    autostart: { supported: true, enabled: true },
+    browser: { supported: true, installed: false, pac: "http://127.0.0.1:8897/proxy.pac" },
+    clients: [{ name: "Discord.exe", connections: 6 }],
+    hosts: [
+      h("gateway.discord.gg", true, { active: 1, total: 2, up: 18000, down: 960000 }),
+      h("discord.com", true, { active: 2, total: 9, up: 61000, down: 5400000 }),
+      h("cdn.discordapp.com", true, { total: 4, down: 2600000, lastSeen: now - 9000 }),
+      h("media.tenor.co", false, { total: 2, down: 350000, lastSeen: now - 15000 }),
+      h("latency.discord.media", true, { noReply: 1, down: 0, up: 517, lastError: "ClientHello gönderildi, sunucudan yanıt gelmedi", lastSeen: now - 40000 }),
+      h("status.discord.com", true, { errors: 1, up: 0, down: 0, lastError: "bağlanılamadı: zaman aşımı (paketler düşürülüyor olabilir)", lastSeen: now - 70000 }),
+    ],
+    log: ["12:00:01 proxy hazır: http://127.0.0.1:8899 (yöntem: tlsrec+split)", "12:00:02 Discord proxy ile başlatıldı."],
+  };
+}
+
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>
