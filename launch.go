@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -16,11 +17,16 @@ import (
 // için "zaten proxy ile mi çalışıyor" sorusu buna bakılarak cevaplanır.
 var launchedProxy atomic.Value
 
+// launchMu, aynı anda iki yeniden başlatmanın (kullanıcı + izleyici) çakışmasını önler.
+var launchMu sync.Mutex
+
 // restartDiscord, Discord'u kapatır ve proxy ayarıyla yeniden başlatır.
 // Ayar yalnızca bu Discord sürecine komut satırı argümanı olarak verilir;
 // sistemde kalıcı hiçbir şey değişmez. force=false ise zaten bu proxy ile
 // çalışan Discord'a dokunulmaz.
 func restartDiscord(hint, proxyURL string, force bool) error {
+	launchMu.Lock()
+	defer launchMu.Unlock()
 	a, err := findDiscord(hint)
 	if err != nil {
 		return err
@@ -41,6 +47,49 @@ func restartDiscord(hint, proxyURL string, force bool) error {
 	launchedProxy.Store(proxyURL)
 	log.Printf("%s proxy ile başlatıldı.", a.name)
 	return nil
+}
+
+// watchDiscord, Discord'un proxy'siz açılıp açılmadığını izler. Discord yeni
+// bir sürüm kurduğunda kendini argümansız yeniden başlatır; bu durumda
+// --proxy-server kaybolur ve güncelleyici "Checking for updates" ekranında
+// kalır. Proxy'siz çalışan Discord art arda iki kontrolde görülürse relaunch
+// çağrılır. Kapalı Discord'a dokunulmaz; döngüye girmemek için iki yeniden
+// başlatma arasında en az 30 sn beklenir.
+func watchDiscord(hint, proxyURL string, stop <-chan struct{}, relaunch func()) {
+	a, err := findDiscord(hint)
+	if err != nil {
+		return
+	}
+	t := time.NewTicker(3 * time.Second)
+	defer t.Stop()
+	misses := 0
+	var last time.Time
+	for {
+		select {
+		case <-stop:
+			return
+		case <-t.C:
+		}
+		if v, _ := launchedProxy.Load().(string); v != proxyURL {
+			continue // Discord'u bu oturumda biz başlatmadık
+		}
+		if !launchMu.TryLock() {
+			misses = 0 // başka bir başlatma sürüyor
+			continue
+		}
+		bad := a.running() && !a.usingProxy(proxyURL)
+		launchMu.Unlock()
+		if !bad {
+			misses = 0
+			continue
+		}
+		if misses++; misses < 2 || time.Since(last) < 30*time.Second {
+			continue
+		}
+		misses, last = 0, time.Now()
+		log.Printf("%s proxy'siz yeniden açılmış (büyük olasılıkla güncelleme sonrası); proxy ile yeniden başlatılıyor.", a.name)
+		relaunch()
+	}
 }
 
 // proxyEnv, Chromium dışındaki bileşenler (ör. güncelleyici) için proxy

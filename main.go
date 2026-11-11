@@ -158,6 +158,11 @@ func cmdRun(args []string) error {
 	}
 
 	done := make(chan struct{})
+	if c.launch {
+		watchStop := make(chan struct{})
+		defer close(watchStop)
+		go watchDiscord(c.app, proxyURL, watchStop, func() { launch(true) })
+	}
 	if c.ui {
 		go readCommands(func(cmd string) {
 			if cmd == "relaunch" {
